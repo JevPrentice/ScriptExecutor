@@ -26,7 +26,8 @@ import java.util.logging.Logger;
  * Iterate over directory of .SQL files. Executing each file on the given
  * database schema
  *
- * Replaces string in .SQL file schema_name with the configuration value for key schema_name
+ * Replaces string in .SQL file schema_name with the configuration value for key
+ * schema_name
  *
  * @author jevprentice
  */
@@ -35,7 +36,7 @@ public class ScriptExecutor {
     private static final ScriptExecutor INSTANCE = new ScriptExecutor();
 
     /**
-     * 
+     *
      */
     private ScriptExecutor() {
         try {
@@ -46,18 +47,18 @@ public class ScriptExecutor {
     }
 
     /**
-     * 
-     * @return 
+     *
+     * @return
      */
     private static ScriptExecutor getInstance() {
         return INSTANCE;
     }
 
     /**
-     * 
+     *
      * @param configFile
      * @return
-     * @throws IOException 
+     * @throws IOException
      */
     private static Properties getProperties(String configFile) throws IOException {
 
@@ -71,10 +72,22 @@ public class ScriptExecutor {
         return properties;
     }
 
+    /**
+     *
+     * @param properties
+     * @return
+     * @throws SQLException
+     */
     private Connection getConnection(Properties properties) throws SQLException {
         return INSTANCE.createConnection(properties);
     }
 
+    /**
+     *
+     * @param properties
+     * @return
+     * @throws SQLException
+     */
     private Connection createConnection(Properties properties) throws SQLException {
         Connection connection = null;
         try {
@@ -93,6 +106,13 @@ public class ScriptExecutor {
         return connection;
     }
 
+    /**
+     *
+     * @param extensions
+     * @param dir
+     * @return
+     * @throws IOException
+     */
     protected static ArrayList<File> getFilesInAppSource(final String[] extensions, final String dir) throws IOException {
 
         final ArrayList<File> files = new ArrayList();
@@ -125,6 +145,15 @@ public class ScriptExecutor {
         return files;
     }
 
+    /**
+     *
+     * @param properties
+     * @param path
+     * @param charset
+     * @return
+     * @throws FileNotFoundException
+     * @throws IOException
+     */
     private static String getSqlFileText(Properties properties, Path path, Charset charset) throws FileNotFoundException, IOException {
 
         StringBuilder sql = new StringBuilder();
@@ -141,6 +170,12 @@ public class ScriptExecutor {
         return sql.toString().replaceAll("schema_name", properties.getProperty("schema_name"));
     }
 
+    /**
+     *
+     * @param properties
+     * @throws SQLException
+     * @throws IOException
+     */
     protected void executeFiles(Properties properties) throws SQLException, IOException {
         try (Connection connection = getConnection(properties)) {
             try (Statement stmt = connection.createStatement()) {

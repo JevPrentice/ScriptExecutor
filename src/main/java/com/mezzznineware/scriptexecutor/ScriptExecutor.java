@@ -23,6 +23,9 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.Session;
+
 /**
  * Iterate over directory of .SQL files. Executing each file on the given
  * database schema
@@ -152,16 +155,47 @@ public class ScriptExecutor {
         return sql.toString().replaceAll("schema_name", properties.getProperty("schema_name"));
     }
 
+    private static void doSshTunnel(String sshUser, String sshPassword, String sshHost, int sshPort, String remoteHost, int localPort, int remotePort) {
+        try {
+            final JSch jsch = new JSch();
+            final Session session = jsch.getSession(sshUser, sshHost, sshPort);
+            session.setPassword(sshPassword);
+
+            final Properties config = new Properties();
+            config.put("StrictHostKeyChecking", "no");
+            session.setConfig(config);
+
+            session.connect();
+            session.setPortForwardingL(localPort, remoteHost, remotePort);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     /**
      *
      * @param properties
      */
     private void executeFiles(Properties properties) {
+
+        String sshUser = properties.getProperty("sshUser");
+        String sshPassword = properties.getProperty("sshPassword");
+        String sshHostname = properties.getProperty("sshHostname");
+        int sshPort = Integer.parseInt(properties.getProperty("sshPort"));
+        String sshRemoteHost = properties.getProperty("sshRemoteHost");
+        int localPort = Integer.parseInt(properties.getProperty("localPort"));
+        int remotePort = Integer.parseInt(properties.getProperty("remotePort"));
+
+        ScriptExecutor.doSshTunnel(sshUser, sshPassword, sshHostname, sshPort, sshRemoteHost, localPort, remotePort);
+
         try (Connection connection = getConnection(properties)) {
             try (Statement stmt = connection.createStatement()) {
 
                 String[] extenstions = {"sql"};
                 int i = 1;
+
+                System.out.println("Executing files sql_dir - " + properties.getProperty("sql_dir"));
+
                 for (final File file : getFilesInAppSource(extenstions, properties.getProperty("sql_dir"))) {
 
                     String sql = getSqlFileText(properties, Paths.get(file.getParent(), file.getName()), Charset.forName("UTF-8"));
@@ -177,7 +211,7 @@ public class ScriptExecutor {
                         System.out.println("Script #" + i + " " + file.getAbsolutePath() + " has been executed and returned " + columnsNumber + " columns");
 
                     } else {
-                        System.out.println("Script #" + i + " " + file.getAbsolutePath() + " has been executed and returned no Result Set");
+                        System.out.println("Script #" + i + " " + file.getAbsolutePath() + " executed");
                     }
 
                     i++;
@@ -185,12 +219,14 @@ public class ScriptExecutor {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } finally {
+            System.out.println("All scripts have been executed");
+            System.exit(0);
         }
     }
 
     public static void main(String[] args) {
         String configFile = (args != null && args.length == 1) ? args[0] : null;
-        //configFile = "/Users/jevprentice/Mezzanine/Toolbox/modules/scriptExecutor/config/config.json";
 
         JSONParser parser = new JSONParser();
         JSONObject jsonObject;
@@ -215,7 +251,6 @@ public class ScriptExecutor {
                 String valueString = String.valueOf(valueObject);
                 properties.put(keyObject, valueString);
             }
-
         }
 
         try {
@@ -224,8 +259,7 @@ public class ScriptExecutor {
             throw new RuntimeException(ex);
         }
 
-        System.out.println(properties.toString());
-
+        //System.out.println(properties.toString());
         ScriptExecutor instance = ScriptExecutor.getInstance();
         instance.executeFiles(properties);
     }

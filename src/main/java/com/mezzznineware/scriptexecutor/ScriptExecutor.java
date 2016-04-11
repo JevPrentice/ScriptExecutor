@@ -17,8 +17,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import java.io.FileReader;
 import org.json.simple.JSONObject;
@@ -68,7 +66,7 @@ public class ScriptExecutor {
      * @return
      * @throws SQLException
      */
-    private Connection createConnection(Properties properties) throws SQLException {
+    private Connection createConnection(Properties properties) {
         Connection connection = null;
         try {
             String database = properties.getProperty("database_url");
@@ -78,10 +76,9 @@ public class ScriptExecutor {
             }
 
             connection = DriverManager.getConnection(database, properties.getProperty("database_user"), properties.getProperty("database_password"));
-            Logger.getLogger(ScriptExecutor.class.getName()).log(Level.INFO, "Connection created to {0}", database);
+
         } catch (SQLException e) {
-            Logger.getLogger(ScriptExecutor.class.getName()).log(Level.SEVERE, "SQL Exception while trying to create database connection", e);
-            throw e;
+            throw new RuntimeException(e);
         }
         return connection;
     }

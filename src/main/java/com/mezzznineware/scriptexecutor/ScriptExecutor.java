@@ -1,8 +1,6 @@
 package com.mezzznineware.scriptexecutor;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.FileVisitResult;
@@ -22,6 +20,11 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import java.io.FileReader;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
 /**
  * Iterate over directory of .SQL files. Executing each file on the given
  * database schema
@@ -39,11 +42,6 @@ public class ScriptExecutor {
      *
      */
     private ScriptExecutor() {
-        try {
-            Class.forName("org.postgresql.Driver");
-        } catch (ClassNotFoundException ex) {
-            Logger.getLogger(ScriptExecutor.class.getName()).log(Level.SEVERE, null, ex);
-        }
     }
 
     /**
@@ -52,24 +50,6 @@ public class ScriptExecutor {
      */
     private static ScriptExecutor getInstance() {
         return INSTANCE;
-    }
-
-    /**
-     *
-     * @param configFile
-     * @return
-     * @throws IOException
-     */
-    private static Properties getProperties(String configFile) throws IOException {
-
-        Properties properties = new Properties();
-        try {
-            properties.load(new FileInputStream(configFile));
-        } catch (IOException e) {
-            Logger.getLogger(ScriptExecutor.class.getName()).log(Level.SEVERE, "Unable to load properties from: " + System.getProperty("user.dir") + "/" + configFile, e);
-            throw new IOException(e);
-        }
-        return properties;
     }
 
     /**
@@ -111,9 +91,8 @@ public class ScriptExecutor {
      * @param extensions
      * @param dir
      * @return
-     * @throws IOException
      */
-    protected static ArrayList<File> getFilesInAppSource(final String[] extensions, final String dir) throws IOException {
+    private static ArrayList<File> getFilesInAppSource(final String[] extensions, final String dir) {
 
         final ArrayList<File> files = new ArrayList();
         final Path directory = Paths.get(dir);
@@ -124,23 +103,27 @@ public class ScriptExecutor {
             file.mkdirs();
         }
 
-        Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
-                final File file = path.toFile();
-                final String fileExtension = file.getName().substring(file.getName().lastIndexOf(".") + 1);
+        try {
+            Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
+                    final File file = path.toFile();
+                    final String fileExtension = file.getName().substring(file.getName().lastIndexOf(".") + 1);
 
-                if (file.isFile()) {
-                    for (String extension : extensions) {
-                        if (fileExtension.equalsIgnoreCase(extension)) {
-                            files.add(file);
+                    if (file.isFile()) {
+                        for (String extension : extensions) {
+                            if (fileExtension.equalsIgnoreCase(extension)) {
+                                files.add(file);
+                            }
                         }
                     }
-                }
 
-                return FileVisitResult.CONTINUE;
-            }
-        });
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         return files;
     }
@@ -151,20 +134,22 @@ public class ScriptExecutor {
      * @param path
      * @param charset
      * @return
-     * @throws FileNotFoundException
-     * @throws IOException
      */
-    private static String getSqlFileText(Properties properties, Path path, Charset charset) throws FileNotFoundException, IOException {
+    private static String getSqlFileText(Properties properties, Path path, Charset charset) {
 
         StringBuilder sql = new StringBuilder();
-        for (String line : Files.readAllLines(path, charset)) {
 
-            if (line.contains("#")) {
-                line = line.substring(0, line.indexOf("#"));
+        try {
+
+            for (String line : Files.readAllLines(path, charset)) {
+                if (line.contains("#")) {
+                    line = line.substring(0, line.indexOf("#"));
+                }
+                sql.append(line).append(System.getProperty("line.separator"));
             }
 
-            sql.append(line).append(System.getProperty("line.separator"));
-
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
 
         return sql.toString().replaceAll("schema_name", properties.getProperty("schema_name"));
@@ -173,10 +158,8 @@ public class ScriptExecutor {
     /**
      *
      * @param properties
-     * @throws SQLException
-     * @throws IOException
      */
-    protected void executeFiles(Properties properties) throws SQLException, IOException {
+    private void executeFiles(Properties properties) {
         try (Connection connection = getConnection(properties)) {
             try (Statement stmt = connection.createStatement()) {
 
@@ -203,15 +186,50 @@ public class ScriptExecutor {
                     i++;
                 }
             }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public static void main(String[] args) throws SQLException, IOException {
-        String configFile = (args != null && args.length == 1) ? args[0] : "";
-        Logger.getLogger(ScriptExecutor.class.getName()).log(Level.SEVERE, "Using Config {0}", configFile);
+    public static void main(String[] args) {
+        String configFile = (args != null && args.length == 1) ? args[0] : null;
+        //configFile = "/Users/jevprentice/Mezzanine/Toolbox/modules/scriptExecutor/config/config.json";
+
+        JSONParser parser = new JSONParser();
+        JSONObject jsonObject;
+
+        try {
+            jsonObject = (JSONObject) parser.parse(new FileReader(configFile));
+        } catch (IOException io) {
+            System.out.println("configFile = " + configFile);
+            System.out.println("user.dir = " + System.getProperty("user.dir"));
+            throw new RuntimeException(io);
+        } catch (ParseException pe) {
+            throw new RuntimeException(pe);
+        }
+
+        Properties properties = new Properties();
+
+        for (Object keyObject : jsonObject.keySet()) {
+            String key = (String) keyObject;
+            Object valueObject = jsonObject.get(key);
+
+            if (valueObject instanceof String) {
+                String valueString = String.valueOf(valueObject);
+                properties.put(keyObject, valueString);
+            }
+
+        }
+
+        try {
+            Class.forName(properties.getProperty("database_driver"));
+        } catch (ClassNotFoundException ex) {
+            throw new RuntimeException(ex);
+        }
+
+        System.out.println(properties.toString());
 
         ScriptExecutor instance = ScriptExecutor.getInstance();
-        Properties properties = getProperties(configFile);
         instance.executeFiles(properties);
     }
 }

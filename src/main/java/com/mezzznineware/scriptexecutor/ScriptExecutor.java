@@ -23,25 +23,34 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * This program iterates over a given directory executing all '.SQL' files on a specific schema to a connected database using jdbc
- * Only postgres has been tested.
- * 
+ * This program iterates over a given directory executing all '.SQL' files on a
+ * specific schema to a connected database using jdbc Only postgres has been
+ * tested.
+ *
  * How to use this software:
- * Setup the config.properties
- * Forward the remote servers postgres to your port 10000 (or anything that matches the database_url config)
- * Make sure all scripts in the sql_dir contain only working reusable SQL, ordered alphabetically for execution (files execute before folders)
- * Make sure all scripts in the sql_dir will execute correctly when running from context 'set search_path to schema_name;'
- *  *When the ScriptExecutor reads the sql scripts into memory it replaces the string pattern 'schema_name' in the sql files with the schema_name config value
- *  *references to public schema must be explicit
- * Customize PROPERTIES_DIR or pass your directory into main
- * Run it.
+ * <ul>
+ * <li></li>
+ * <li>Setup the config.properties</li>
+ * <li>Forward the remote servers postgres to your port 10000 (or anything that
+ * matches the database_url config)</li>
+ * <li>Make sure all scripts in the sql_dir contain only working reusable SQL,
+ * ordered alphabetically for execution (files execute before folders)</li>
+ * <li>Make sure all scripts in the sql_dir will execute correctly when running
+ * from context 'set search_path to schema_name;'</li>
+ * <li>When the ScriptExecutor reads the sql scripts into memory it replaces the
+ * string pattern 'schema_name' in the sql files with the schema_name config
+ * value</li>
+ * <li>references to public schema must be explicit</li>
+ * <li>Customize PROPERTIES_DIR or pass your directory into main</li>
+ * <li>Run it.</li>
+ * </ul>
  *
  * @author jevprentice
  */
 public class ScriptExecutor {
 
     private static final ScriptExecutor INSTANCE = new ScriptExecutor();
-    private static final String PROPERTIES_DIR = "/Users/jevprentice/NetBeansProjects/ScriptExecutor 2/src/main/resources/config.properties";
+    private static final String PROPERTIES_DIR = "/Users/jevprentice/NetBeansProjects/ScriptExecutor/src/main/resources/config.properties";
 
     /**
      *
@@ -183,10 +192,10 @@ public class ScriptExecutor {
     public static void main(String[] args) throws SQLException, IOException {
         String configFile = (args != null && args.length == 1) ? args[0] : PROPERTIES_DIR;
 
-        Logger.getLogger(ScriptExecutor.class.getName()).log(Level.SEVERE, "Starting - Using Config {0}", configFile);
+        Logger.getLogger(ScriptExecutor.class.getName()).log(Level.INFO, "Starting - Using Config {0}", configFile);
 
         ScriptExecutor.getInstance().executeFiles(getProperties(configFile));
 
-        Logger.getLogger(ScriptExecutor.class.getName()).log(Level.SEVERE, "Done");
+        Logger.getLogger(ScriptExecutor.class.getName()).log(Level.INFO, "Done");
     }
 }

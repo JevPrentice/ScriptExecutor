@@ -50,7 +50,7 @@ import java.util.logging.Logger;
 public class ScriptExecutor {
 
     private static final ScriptExecutor INSTANCE = new ScriptExecutor();
-    private static final String PROPERTIES_DIR = "/Users/jevprentice/NetBeansProjects/ScriptExecutor/src/main/resources/config.properties";
+    private static final String PROPERTIES_DIR = "/Users/jev/NetBeansProjects/ScriptExecutor/src/main/resources/config.properties";
 
     /**
      *
@@ -160,13 +160,14 @@ public class ScriptExecutor {
     }
 
     protected void executeFiles(Properties properties) throws SQLException, IOException {
+        File tmpFile = null;
         try (Connection connection = getConnection(properties)) {
             try (Statement stmt = connection.createStatement()) {
 
                 String[] extenstions = {"sql"};
                 int i = 1;
                 for (final File file : getFilesInAppSource(extenstions, properties.getProperty("sql_dir"))) {
-
+                    tmpFile = file;
                     String sql = getSqlFileText(properties, Paths.get(file.getParent(), file.getName()), Charset.forName("UTF-8"));
 
                     boolean execute = stmt.execute(sql);
@@ -185,6 +186,11 @@ public class ScriptExecutor {
 
                     i++;
                 }
+            } catch (Throwable e) {
+                if (tmpFile != null) {
+                    System.out.println("Error on script: " + tmpFile.getAbsolutePath());
+                }
+                e.printStackTrace(System.out);
             }
         }
     }
